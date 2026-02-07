@@ -1,29 +1,53 @@
+"""
+Upload endpoint for IFC files.
+Handles file upload and storage only.
+"""
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.models.schemas import UploadResponse
+from fastapi.responses import JSONResponse
+
+from app.services.file_storage import get_file_storage
 
 router = APIRouter()
 
 
-@router.post("/upload", response_model=UploadResponse)
+@router.post("/upload")
 async def upload_ifc(file: UploadFile = File(...)):
     """
-    Upload an IFC file for processing.
-    
+    Upload an IFC file and save it.
+
+    Args:
+        file: IFC file to upload
+
     Returns:
-        file_id: Unique identifier for the uploaded file
-        filename: Original filename
-        status: Upload status
+        JSON response with fileId, filename, status
     """
-    # TODO: Implement file validation
-    # TODO: Save file with unique ID
-    # TODO: Return file_id for subsequent requests
-    
-    if not file.filename.endswith('.ifc'):
-        raise HTTPException(status_code=400, detail="File must be an IFC file")
-    
-    # Placeholder response
-    return {
-        "file_id": "placeholder-id",
-        "filename": file.filename,
-        "status": "uploaded"
-    }
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    if not file.filename.lower().endswith(".ifc"):
+        raise HTTPException(status_code=400, detail="Only IFC files are supported")
+
+    try:
+        content = await file.read()
+
+        if len(content) == 0:
+            raise HTTPException(status_code=400, detail="Empty file uploaded")
+
+        storage = get_file_storage()
+        file_id = storage.save_file(content, file.filename)
+
+        return JSONResponse(
+            content={
+                "fileId": file_id,
+                "filename": file.filename,
+                "status": "success",
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to upload IFC file: {str(e)}"
+        )

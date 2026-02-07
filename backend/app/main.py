@@ -1,14 +1,31 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import upload, materials, export
+from app.api import upload, export, glb, summary
+from contextlib import asynccontextmanager
+import logging
+import signal
+import sys
+from app.services.file_storage import get_file_storage
 
-app = FastAPI(title="IFC Materials Summary Viewer API")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    storage = get_file_storage()
+    storage.cleanup_all()
+
+
+app = FastAPI(title="IFC Materials Summary Viewer API", lifespan=lifespan)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Vite default dev server
-        "http://localhost:3000",  # Alternative React dev server
+        "http://localhost:5173",
+        "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
     ],
@@ -18,13 +35,16 @@ app.add_middleware(
 )
 
 app.include_router(upload.router, prefix="/api", tags=["upload"])
-app.include_router(materials.router, prefix="/api", tags=["materials"])
 app.include_router(export.router, prefix="/api", tags=["export"])
+app.include_router(glb.router, prefix="/api", tags=["glb"])
+app.include_router(summary.router, prefix="/api", tags=["summary"])
+
 
 @app.get("/")
 async def root():
     return {"message": "IFC Materials Summary Viewer"}
 
+
 @app.get("/health")
 async def health_check():
-    return {"status":"healthy"}
+    return {"status": "healthy"}

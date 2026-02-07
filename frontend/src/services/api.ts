@@ -1,76 +1,78 @@
-import axios, { AxiosInstance } from 'axios';
-import { MaterialsSummaryResponse, UploadResponse } from '../types/index';
+// API Client Functions
+// All backend communication for IFC processing
 
-// Base API configuration
-const API_BASE_URL = 'http://localhost:8000';
+import { UploadResponse, MaterialGroup } from '../types';
 
-// Create axios instance with default config
-const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 30000, // 30 seconds timeout
-});
+const API_BASE_URL = '/api';
 
-// API service functions
-export const api = {
-  /**
-   * Upload an IFC file
-   */
-  uploadIFC: async (file: File): Promise<UploadResponse> => {
-    const formData = new FormData();
-    formData.append('file', file);
+export async function uploadIFC(file: File): Promise<UploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
 
-    const response = await apiClient.post<UploadResponse>(
-      '/api/upload',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+  const response = await fetch(`${API_BASE_URL}/upload`, {
+    method: 'POST',
+    body: formData,
+  });
 
-    return response.data;
-  },
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(error.detail || 'Upload failed');
+  }
 
-  /**
-   * Get materials summary for an uploaded file
-   */
-  getMaterialsSummary: async (
-    fileId: string,
-    density?: number
-  ): Promise<MaterialsSummaryResponse> => {
-    const params = density ? { density } : {};
-    
-    const response = await apiClient.get<MaterialsSummaryResponse>(
-      `/api/materials/${fileId}`,
-      { params }
-    );
+  return response.json();
+}
 
-    return response.data;
-  },
+export async function exportCSV(fileId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/export/${fileId}`);
 
-  /**
-   * Export materials summary as CSV
-   */
-  exportCSV: async (fileId: string): Promise<Blob> => {
-    const response = await apiClient.get(`/api/export/${fileId}`, {
-      responseType: 'blob',
-    });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+    throw new Error(error.detail || 'Export failed');
+  }
 
-    return response.data;
-  },
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `materials_${fileId}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
 
-  /**
-   * Health check endpoint
-   */
-  healthCheck: async (): Promise<{ status: string }> => {
-    const response = await apiClient.get('/health');
-    return response.data;
-  },
-};
+export async function getMaterialSummary(fileId: string): Promise<MaterialGroup[]> {
+  const response = await fetch(`${API_BASE_URL}/summary/${fileId}`);
 
-// Export axios instance for custom requests if needed
-export default apiClient;
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to get summary' }));
+    throw new Error(error.detail || 'Failed to get summary');
+  }
+
+  return response.json();
+}
+
+export async function getGLB(fileId: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/glb/${fileId}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to load 3D model' }));
+    throw new Error(error.detail || 'Failed to load 3D model');
+  }
+
+  return response.blob();
+}
+
+export async function getGLBElementIds(fileId: string): Promise<{
+  meshToExpressId: Record<string, number>;
+  expressIdToMesh: Record<number, number[]>;
+}> {
+  const response = await fetch(`${API_BASE_URL}/glb/${fileId}/ids`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to load element IDs' }));
+    throw new Error(error.detail || 'Failed to load element IDs');
+  }
+
+  return response.json();
+}

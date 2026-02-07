@@ -1,37 +1,19 @@
-// API Response Types
+// Type Definitions for API Responses
 
 export interface UploadResponse {
-  file_id: string;
+  fileId: string;
   filename: string;
   status: string;
+  materialSummary: MaterialGroup[];
 }
 
 export interface MaterialGroup {
-  material_name: string;
-  element_count: number;
-  total_area: number | null;
-  total_volume: number | null;
+  materialGroup: string;
+  elementCount: number;
+  totalArea: number | null;
+  totalVolume: number | null;
   density: number | null;
-  total_weight: number | null;
-  element_ids: string[];
-  has_missing_quantities: boolean;
-}
-
-export interface MaterialsSummaryResponse {
-  file_id: string;
-  material_groups: MaterialGroup[];
-}
-
-// UI State Types
-
-export interface UploadState {
-  isUploading: boolean;
-  progress: number;
-  error: string | null;
-}
-
-export interface ViewerState {
-  isLoading: boolean;
-  selectedMaterialGroup: string | null;
-  highlightMode: 'highlight' | 'xray';
+  totalWeight: number | null;
+  elementIds: number[];
+  missingQuantities: boolean;
 }
