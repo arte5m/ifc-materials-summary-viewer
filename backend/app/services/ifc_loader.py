@@ -8,7 +8,7 @@ from app.services.file_storage import get_file_storage
 
 
 class MaterialGroup(TypedDict):
-    materialGroup: Optional[str]
+    materialGroup: str
     elementCount: int
     totalArea: float
     totalVolume: float
@@ -17,14 +17,9 @@ class MaterialGroup(TypedDict):
     elementIds: List[int]
 
 
-def load_ifc(path: str):
-    """Load IFC file from path"""
-    return ifcopenshell.open(path)
-
-
 def get_ifcElements(path: str):
     """Get all IfcElement entities from IFC file"""
-    model = load_ifc(path)
+    model = ifcopenshell.open(path)
     elements = ifcopenshell.util.selector.filter_elements(model, "IfcElement")
     return elements
 
@@ -76,17 +71,13 @@ def get_ifcElement_quantities(element) -> Tuple[Optional[float], Optional[float]
     return area, volume
 
 
-def get_ifcElement_materials(element):
-    """Extract materials from IFC element"""
-    materials = ifcopenshell.util.element.get_materials(element)
-    return materials if materials else []
-
-
-def get_ifcMaterial_name(material) -> str:
-    if hasattr(material, "Name") and material.Name:
-        return material.Name
-    if hasattr(material, "Category") and material.Category:
-        return material.Category
+def get_materialGroup_name(element) -> str:
+    material = ifcopenshell.util.selector.get_element_value(element, "material.Name")
+    if material:
+        return material
+    element_class = element.is_a()
+    if element_class:
+        return element_class
     return "Unassigned"
 
 
@@ -95,7 +86,7 @@ def process_ifc_materials(
 ) -> List[Dict]:
     """
     Process IFC file and extract material groups with quantities.
-    Process ALL materials of each element, not just the first one.
+    Each element contributes to ONE material group.
 
     Args:
         file_path: Path to IFC file
@@ -137,34 +128,27 @@ def process_ifc_materials(
             skipped_count += 1
             continue
 
-        # Get quantities (same for all materials of this element)
+        # Get quantities
         area, volume = get_ifcElement_quantities(element)
 
-        # Get all materials for this element
-        materials = get_ifcElement_materials(element)
-        material_names = []
+        # Get material group for this element
+        material_name = get_materialGroup_name(element)
 
-        if materials:
-            # Process each material
-            for material in materials:
-                material_names.append(get_ifcMaterial_name(material))
+        # Add element to material group
+        groups[material_name]["materialGroup"] = material_name
+        groups[material_name]["elementIds"].append(element_id)
+        groups[material_name]["elementCount"] += 1
 
-        # Add element to each material group
-        for material_name in material_names:
-            groups[material_name]["materialGroup"] = material_name
-            groups[material_name]["elementIds"].append(element_id)
-            groups[material_name]["elementCount"] += 1
+        # Add quantities
+        if area is not None:
+            groups[material_name]["totalArea"] += area
+        else:
+            groups[material_name]["missingQuantities"] = True
 
-            # Add quantities
-            if area is not None:
-                groups[material_name]["totalArea"] += area
-            else:
-                groups[material_name]["missingQuantities"] = True
-
-            if volume is not None:
-                groups[material_name]["totalVolume"] += volume
-            else:
-                groups[material_name]["missingQuantities"] = True
+        if volume is not None:
+            groups[material_name]["totalVolume"] += volume
+        else:
+            groups[material_name]["missingQuantities"] = True
 
         processed_count += 1
 

@@ -3,6 +3,8 @@
 
 import { UploadResponse, MaterialGroup } from '../types';
 
+export type { MaterialGroup };
+
 const API_BASE_URL = '/api';
 
 export async function uploadIFC(file: File): Promise<UploadResponse> {
