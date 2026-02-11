@@ -9,6 +9,12 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       }
-    }
+    },
+    // Headers removed to disable cross-origin isolation
+    // This forces web-ifc to use single-threaded mode (no workers)
+    // and eliminates worker loading errors
   },
+  optimizeDeps: {
+    exclude: ['@thatopen/components', '@thatopen/components-front', 'web-ifc', 'three']
+  }
 })

@@ -25,7 +25,7 @@ export function Header({ title }: HeaderProps) {
 }
 
 interface MainContentProps {
-  toolbar: React.ReactNode;
+  toolbar?: React.ReactNode;
   leftPanel: React.ReactNode;
   rightPanel: React.ReactNode;
 }

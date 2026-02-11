@@ -124,7 +124,7 @@ class FileStorage:
 
     def delete_file(self, file_id: str) -> bool:
         """
-        Delete a file and its metadata (IFC, GLB, JSON mapping).
+        Delete a file and its metadata.
 
         Args:
             file_id: Unique identifier of the file
@@ -145,23 +145,7 @@ class FileStorage:
             except OSError:
                 pass
 
-        # Delete GLB file
-        glb_path = info.get("glb_path")
-        if glb_path and os.path.exists(glb_path):
-            try:
-                os.remove(glb_path)
-            except OSError:
-                pass
-
-        # Delete JSON mapping file
-        json_path = info.get("json_path")
-        if json_path and os.path.exists(json_path):
-            try:
-                os.remove(json_path)
-            except OSError:
-                pass
-
-        # Remove metadata including skipped_ids
+        # Remove metadata
         del self._metadata[file_id]
         self._save_metadata()
 
@@ -169,17 +153,10 @@ class FileStorage:
 
     def cleanup_all(self):
         """
-        Delete all uploaded files (IFC, GLB, JSON) and clear metadata.
+        Delete all uploaded files (IFC, Fragments, JSON) and clear metadata.
         Called on application shutdown.
         """
         try:
-            # Delete all .glb files
-            for f in self.uploads_dir.glob("*.glb"):
-                try:
-                    f.unlink()
-                except OSError:
-                    pass
-
             # Delete all .json files (including metadata.json)
             for f in self.uploads_dir.glob("*.json"):
                 try:
@@ -189,6 +166,13 @@ class FileStorage:
 
             # Delete all .ifc files
             for f in self.uploads_dir.glob("*.ifc"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
+            # Delete all .frag files
+            for f in self.uploads_dir.glob("*.frag"):
                 try:
                     f.unlink()
                 except OSError:
@@ -221,88 +205,17 @@ class FileStorage:
         """
         return list(self._metadata.keys())
 
-    def get_glb_path(self, file_id: str) -> Path:
+    def get_material_summary(self, file_id: str) -> list | None:
         """
-        Get path for cached GLB file.
+        Get cached material summary from metadata.
 
         Args:
             file_id: Unique identifier of the file
 
         Returns:
-            Path to the GLB file
+            Material summary list, or None if not cached
         """
-        return self.uploads_dir / f"{file_id}.glb"
-
-    def delete_glb(self, file_id: str) -> bool:
-        """
-        Delete cached GLB file.
-
-        Args:
-            file_id: Unique identifier of the file
-
-        Returns:
-            True if deleted or didn't exist, False on error
-        """
-        glb_path = self.get_glb_path(file_id)
-        if glb_path.exists():
-            try:
-                glb_path.unlink()
-                # Remove from metadata
-                if file_id in self._metadata:
-                    self._metadata[file_id].pop("glb_path", None)
-                    self._save_metadata()
-                return True
-            except OSError:
-                return False
-        return True
-
-    def save_glb_path(self, file_id: str, glb_path: Path):
-        """
-        Save GLB file path to metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-            glb_path: Path to the GLB file
-        """
-        if file_id in self._metadata:
-            self._metadata[file_id]["glb_path"] = str(glb_path)
-            self._save_metadata()
-
-    def save_json_path(self, file_id: str, json_path: str):
-        """
-        Save JSON mapping file path to metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-            json_path: Path to the JSON mapping file
-        """
-        if file_id in self._metadata:
-            self._metadata[file_id]["json_path"] = json_path
-            self._save_metadata()
-
-    def save_skipped_ids(self, file_id: str, skipped_ids: list):
-        """
-        Save skipped element IDs to metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-            skipped_ids: List of element IDs that failed GLB conversion
-        """
-        if file_id in self._metadata:
-            self._metadata[file_id]["skipped_ids"] = skipped_ids
-            self._save_metadata()
-
-    def get_skipped_ids(self, file_id: str) -> list:
-        """
-        Get skipped element IDs from metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-
-        Returns:
-            List of skipped element IDs, or empty list if none
-        """
-        return self._metadata.get(file_id, {}).get("skipped_ids", [])
+        return self._metadata.get(file_id, {}).get("material_summary")
 
     def save_material_summary(self, file_id: str, summary: list):
         """
@@ -315,18 +228,6 @@ class FileStorage:
         if file_id in self._metadata:
             self._metadata[file_id]["material_summary"] = summary
             self._save_metadata()
-
-    def get_material_summary(self, file_id: str) -> list | None:
-        """
-        Get cached material summary from metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-
-        Returns:
-            Material summary list, or None if not cached
-        """
-        return self._metadata.get(file_id, {}).get("material_summary")
 
 
 # Global instance for easy access

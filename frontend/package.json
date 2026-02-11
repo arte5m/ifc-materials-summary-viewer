@@ -10,15 +10,18 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@thatopen/components": "^3.3.1",
+    "@thatopen/components-front": "^3.3.1",
+    "@thatopen/fragments": "^3.3.1",
+    "@thatopen/ui": "^3.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.175.0",
-    "three-stdlib": "^2.29.0"
+    "three": "^0.175.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
-    "@types/three": "^0.175.0",
+    "@types/three": "^0.182.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -26,6 +29,8 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "typescript": "^5.3.3",
-    "vite": "^5.0.11"
+    "vite": "^5.0.11",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
   }
 }

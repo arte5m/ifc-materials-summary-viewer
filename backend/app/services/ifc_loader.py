@@ -4,8 +4,6 @@ import ifcopenshell.util.element
 from typing import Tuple, Optional, List, Dict, TypedDict
 from collections import defaultdict
 
-from app.services.file_storage import get_file_storage
-
 
 class MaterialGroup(TypedDict):
     materialGroup: str
@@ -14,7 +12,7 @@ class MaterialGroup(TypedDict):
     totalVolume: float
     totalWeight: float
     missingQuantities: bool
-    elementIds: List[int]
+    elementIds: List[str]
 
 
 def get_ifcElements(path: str):
@@ -98,12 +96,6 @@ def process_ifc_materials(
     # Get all elements
     elements = get_ifcElements(file_path)
 
-    # Load skipped element IDs from GLB conversion (for alignment)
-    skipped_ids = set()
-    storage = get_file_storage()
-    file_id = file_path.split("/")[-1].replace(".ifc", "")
-    skipped_ids = set(storage.get_skipped_ids(file_id) or [])
-
     # Dictionary to group by material
     groups: Dict[str, MaterialGroup] = defaultdict(
         lambda: {
@@ -118,15 +110,9 @@ def process_ifc_materials(
     )
 
     processed_count = 0
-    skipped_count = 0
 
     for element in elements:
-        element_id = element.id()
-
-        # Skip elements that failed GLB conversion (for alignment)
-        if element_id in skipped_ids:
-            skipped_count += 1
-            continue
+        element_guid = element.GlobalId
 
         # Get quantities
         area, volume = get_ifcElement_quantities(element)
@@ -136,7 +122,7 @@ def process_ifc_materials(
 
         # Add element to material group
         groups[material_name]["materialGroup"] = material_name
-        groups[material_name]["elementIds"].append(element_id)
+        groups[material_name]["elementIds"].append(element_guid)
         groups[material_name]["elementCount"] += 1
 
         # Add quantities

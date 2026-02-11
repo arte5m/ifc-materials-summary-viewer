@@ -14,6 +14,6 @@ export interface MaterialGroup {
   totalVolume: number | null;
   density: number | null;
   totalWeight: number | null;
-  elementIds: number[];
+  elementIds: string[];
   missingQuantities: boolean;
 }

@@ -1,38 +1,30 @@
-// IFC Materials Summary Viewer - Main Application Component
-// Manages: file upload, material selection, 3D viewer, and CSV export
-
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { Upload } from './components/Upload';
 import { Viewer } from './components/Viewer';
 import { MaterialsTable } from './components/MaterialsTable';
-import { Toolbar } from './components/Toolbar';
 import { Layout, Header, MainContent } from './components/Layout';
-import { uploadIFC, exportCSV, getMaterialSummary, MaterialGroup } from './services/api';
+import { uploadIFC, getMaterialSummary, MaterialGroup } from './services/api';
+import { Manager } from '@thatopen/ui';
 import './App.css';
+
+Manager.init();
 
 function App() {
   const [fileId, setFileId] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
-  const [highlightMode, setHighlightMode] = useState<'normal' | 'xray'>('normal');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modelKey, setModelKey] = useState(0);
   const [materialGroups, setMaterialGroups] = useState<MaterialGroup[]>([]);
-
-  const uploadedFileIdRef = useRef<string | null>(null);
+  const [highlightMode, setHighlightMode] = useState<'highlight' | 'xray'>('highlight');
 
   const upload = useCallback(async (file: File) => {
     setIsLoading(true);
     setError(null);
     setSelectedMaterial(null);
-    setHighlightMode('normal');
 
     try {
       const response = await uploadIFC(file);
-      uploadedFileIdRef.current = response.fileId;
       setFileId(response.fileId);
-      setModelKey(prev => prev + 1);
-
       const summary = await getMaterialSummary(response.fileId);
       setMaterialGroups(summary);
     } catch (err) {
@@ -46,49 +38,24 @@ function App() {
     setSelectedMaterial(materialName);
   }, []);
 
-  const toggleHighlightMode = useCallback(() => {
-    setHighlightMode(prev => prev === 'normal' ? 'xray' : 'normal');
-  }, []);
-
-  const handleExport = useCallback(async () => {
-    if (!fileId) return;
-    try {
-      await exportCSV(fileId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
-    }
-  }, [fileId]);
-
-  const reloadModel = useCallback(() => {
-    if (!uploadedFileIdRef.current) return;
-    
+  const handleReset = useCallback(() => {
     setSelectedMaterial(null);
-    setHighlightMode('normal');
-    setModelKey(prev => prev + 1);
-    
-    getMaterialSummary(uploadedFileIdRef.current)
-      .then((groups) => {
-        setMaterialGroups(groups);
-      })
-      .catch(() => setMaterialGroups([]));
+    setHighlightMode('highlight');
   }, []);
+
+  const handleMaterialClick = useCallback((materialName: string) => {
+    if (selectedMaterial === materialName) {
+      setSelectedMaterial(null);
+    } else {
+      setSelectedMaterial(materialName);
+    }
+  }, [selectedMaterial]);
 
   return (
     <Layout>
       <Header title="IFC Materials Summary Viewer" />
       
       <MainContent
-        toolbar={
-          fileId ? (
-            <Toolbar
-              fileId={fileId}
-              highlightMode={highlightMode}
-              onExport={handleExport}
-              onToggleMode={toggleHighlightMode}
-              onReload={reloadModel}
-            />
-          ) : null
-        }
         leftPanel={
           <div className="viewer-with-upload">
             <Upload
@@ -98,23 +65,62 @@ function App() {
             />
             {fileId && (
               <Viewer
-                key={modelKey}
                 fileId={fileId}
-                modelKey={modelKey}
                 selectedMaterial={selectedMaterial}
                 materialGroups={materialGroups}
                 highlightMode={highlightMode}
+                onClearSelection={() => selectMaterial(null)}
+                onReset={handleReset}
               />
             )}
           </div>
         }
         rightPanel={
-          fileId ? (
-            <MaterialsTable
-              materialGroups={materialGroups}
-              selectedMaterial={selectedMaterial}
-              onSelect={selectMaterial}
-            />
+          fileId && materialGroups.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px' }}>
+              <div style={{
+                marginBottom: '8px',
+                display: 'flex',
+                gap: '8px',
+                padding: '8px',
+                backgroundColor: '#2a2a3e',
+                borderRadius: '4px'
+              }}>
+                <button
+                  onClick={() => setHighlightMode('highlight')}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: highlightMode === 'highlight' ? '#bcf124' : '#1a1a2e',
+                    color: highlightMode === 'highlight' ? '#1a1a2e' : '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Highlight
+                </button>
+                <button
+                  onClick={() => setHighlightMode('xray')}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    backgroundColor: highlightMode === 'xray' ? '#bcf124' : '#1a1a2e',
+                    color: highlightMode === 'xray' ? '#1a1a2e' : '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  X-Ray
+                </button>
+              </div>
+
+              <MaterialsTable
+                materialGroups={materialGroups}
+                onMaterialClick={handleMaterialClick}
+              />
+            </div>
           ) : null
         }
       />

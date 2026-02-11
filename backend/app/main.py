@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import upload, export, glb, summary
+from app.api import upload, export, summary
 from contextlib import asynccontextmanager
 import logging
 import signal
@@ -36,7 +36,6 @@ app.add_middleware(
 
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(export.router, prefix="/api", tags=["export"])
-app.include_router(glb.router, prefix="/api", tags=["glb"])
 app.include_router(summary.router, prefix="/api", tags=["summary"])
 
 

@@ -68,7 +68,7 @@ The application will be available at `http://localhost:5173`
 Materials are grouped using the following priority:
 
 1. Material Name (IfcMaterial.Name) - Preferred
-2. Material Type (IfcMaterial.MaterialType) - Fallback
+2. Material Type (IfcMaterial.Type) - Fallback
 3. "Unassigned" - For elements without material assignments
 
 ### Quantity Extraction
