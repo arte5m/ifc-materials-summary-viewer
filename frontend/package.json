@@ -13,10 +13,10 @@
     "@thatopen/components": "^3.3.1",
     "@thatopen/components-front": "^3.3.1",
     "@thatopen/fragments": "^3.3.1",
-    "@thatopen/ui": "^3.3.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.175.0"
+    "three": "^0.175.0",
+    "web-ifc": "^0.0.75"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",

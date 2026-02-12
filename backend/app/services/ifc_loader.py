@@ -7,6 +7,8 @@ from collections import defaultdict
 
 class MaterialGroup(TypedDict):
     materialGroup: str
+    hasMaterial: int
+    elementClass: Optional[str]
     elementCount: int
     totalArea: float
     totalVolume: float
@@ -69,14 +71,34 @@ def get_ifcElement_quantities(element) -> Tuple[Optional[float], Optional[float]
     return area, volume
 
 
-def get_materialGroup_name(element) -> str:
-    material = ifcopenshell.util.selector.get_element_value(element, "material.Name")
-    if material:
-        return material
+def get_element_material_Name(element):
+    material_name = ifcopenshell.util.selector.get_element_value(
+        element, "material.Name"
+    )
+    return material_name if material_name else None
+
+
+def get_element_class(element):
     element_class = element.is_a()
-    if element_class:
-        return element_class
-    return "Unassigned"
+    return element_class if element_class else None
+
+
+def get_element_group_key(element):
+    """Returns tuple for hierarchical sorting: (has_material, group_name, class_name)
+    - has_material: 0 if has material, 1 if no material (materials sort first)
+    - group_name: material name or element class
+    - class_name: always element class (for reference)
+    """
+    material_name = ifcopenshell.util.selector.get_element_value(
+        element, "material.Name"
+    )
+
+    class_name = element.is_a() or "Unassigned"
+
+    if material_name:
+        return (0, material_name, class_name)  # 0 = has material, sort first
+    else:
+        return (1, class_name, class_name)  # 1 = no material, sort after
 
 
 def process_ifc_materials(
@@ -97,9 +119,11 @@ def process_ifc_materials(
     elements = get_ifcElements(file_path)
 
     # Dictionary to group by material
-    groups: Dict[str, MaterialGroup] = defaultdict(
+    groups: Dict[str, MaterialGroup] = defaultdict(  # type: ignore[assignment]
         lambda: {
             "materialGroup": None,
+            "hasMaterial": 1,
+            "elementClass": None,
             "elementCount": 0,
             "totalArea": 0.0,
             "totalVolume": 0.0,
@@ -109,38 +133,36 @@ def process_ifc_materials(
         }
     )
 
-    processed_count = 0
-
     for element in elements:
         element_guid = element.GlobalId
 
         # Get quantities
         area, volume = get_ifcElement_quantities(element)
 
-        # Get material group for this element
-        material_name = get_materialGroup_name(element)
+        # Get grouping key for hierarchical sorting
+        has_material, group_name, element_class = get_element_group_key(element)
 
         # Add element to material group
-        groups[material_name]["materialGroup"] = material_name
-        groups[material_name]["elementIds"].append(element_guid)
-        groups[material_name]["elementCount"] += 1
+        groups[group_name]["materialGroup"] = group_name
+        groups[group_name]["hasMaterial"] = has_material
+        groups[group_name]["elementClass"] = element_class
+        groups[group_name]["elementIds"].append(element_guid)
+        groups[group_name]["elementCount"] += 1
 
         # Add quantities
         if area is not None:
-            groups[material_name]["totalArea"] += area
+            groups[group_name]["totalArea"] += area
         else:
-            groups[material_name]["missingQuantities"] = True
+            groups[group_name]["missingQuantities"] = True
 
         if volume is not None:
-            groups[material_name]["totalVolume"] += volume
+            groups[group_name]["totalVolume"] += volume
         else:
-            groups[material_name]["missingQuantities"] = True
-
-        processed_count += 1
+            groups[group_name]["missingQuantities"] = True
 
     # Calculate weights and format output
     result = []
-    for material_name, data in groups.items():
+    for group_key, data in groups.items():
         # Set to None if no quantities were added (all were 0)
         total_area = data["totalArea"] if data["totalArea"] > 0 else None
         total_volume = data["totalVolume"] if data["totalVolume"] > 0 else None
@@ -153,6 +175,8 @@ def process_ifc_materials(
         result.append(
             {
                 "materialGroup": data["materialGroup"],
+                "hasMaterial": data["hasMaterial"],
+                "elementClass": data["elementClass"],
                 "elementCount": data["elementCount"],
                 "totalArea": total_area,
                 "totalVolume": total_volume,
@@ -163,7 +187,13 @@ def process_ifc_materials(
             }
         )
 
-    # Sort by material name
-    result.sort(key=lambda x: x["materialGroup"])
+    # Sort hierarchically: by hasMaterial (0 first), then by materialGroup, then by elementClass
+    result.sort(
+        key=lambda x: (
+            x.get("hasMaterial", 1),
+            x.get("materialGroup", ""),
+            x.get("elementClass", ""),
+        )
+    )
 
     return result

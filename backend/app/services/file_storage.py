@@ -122,35 +122,6 @@ class FileStorage:
             return None
         return self._metadata[file_id].get("original_filename")
 
-    def delete_file(self, file_id: str) -> bool:
-        """
-        Delete a file and its metadata.
-
-        Args:
-            file_id: Unique identifier of the file
-
-        Returns:
-            True if deleted successfully, False otherwise
-        """
-        if file_id not in self._metadata:
-            return False
-
-        info = self._metadata[file_id]
-
-        # Delete IFC file
-        file_path = info.get("file_path")
-        if file_path and os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except OSError:
-                pass
-
-        # Remove metadata
-        del self._metadata[file_id]
-        self._save_metadata()
-
-        return True
-
     def cleanup_all(self):
         """
         Delete all uploaded files (IFC, Fragments, JSON) and clear metadata.
@@ -183,27 +154,6 @@ class FileStorage:
 
         except Exception:
             pass
-
-    def file_exists(self, file_id: str) -> bool:
-        """
-        Check if a file exists.
-
-        Args:
-            file_id: Unique identifier of the file
-
-        Returns:
-            True if file exists, False otherwise
-        """
-        return self.get_file_path(file_id) is not None
-
-    def get_all_file_ids(self) -> list:
-        """
-        Get list of all stored file IDs.
-
-        Returns:
-            List of file IDs
-        """
-        return list(self._metadata.keys())
 
     def get_material_summary(self, file_id: str) -> list | None:
         """

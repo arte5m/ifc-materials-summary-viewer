@@ -24,17 +24,6 @@ export function Upload({ onUpload, isLoading, error }: UploadProps) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="upload-container">
-        <div className="upload-loading">
-          <div className="spinner"></div>
-          <p>Processing IFC file...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="upload-container">
       <div className="upload-form">
@@ -44,6 +33,7 @@ export function Upload({ onUpload, isLoading, error }: UploadProps) {
             type="file"
             accept=".ifc"
             onChange={handleFileChange}
+            disabled={isLoading}
             className="upload-input-visible"
           />
         </label>
@@ -54,8 +44,12 @@ export function Upload({ onUpload, isLoading, error }: UploadProps) {
             <span className="file-size">
               ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
             </span>
-            <button className="upload-button" onClick={handleUpload}>
-              Upload
+            <button 
+              className={`upload-button ${isLoading ? 'upload-button-disabled' : ''}`} 
+              onClick={handleUpload}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Uploading...' : 'Upload'}
             </button>
           </div>
         )}

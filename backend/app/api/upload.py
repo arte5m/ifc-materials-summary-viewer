@@ -5,12 +5,8 @@ Handles file upload and storage only.
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
-from pathlib import Path
-import logging
 
 from app.services.file_storage import get_file_storage
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

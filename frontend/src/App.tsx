@@ -2,12 +2,8 @@ import { useState, useCallback } from 'react';
 import { Upload } from './components/Upload';
 import { Viewer } from './components/Viewer';
 import { MaterialsTable } from './components/MaterialsTable';
-import { Layout, Header, MainContent } from './components/Layout';
 import { uploadIFC, getMaterialSummary, MaterialGroup } from './services/api';
-import { Manager } from '@thatopen/ui';
 import './App.css';
-
-Manager.init();
 
 function App() {
   const [fileId, setFileId] = useState<string | null>(null);
@@ -21,6 +17,7 @@ function App() {
     setIsLoading(true);
     setError(null);
     setSelectedMaterial(null);
+    setHighlightMode('highlight');
 
     try {
       const response = await uploadIFC(file);
@@ -34,8 +31,8 @@ function App() {
     }
   }, []);
 
-  const selectMaterial = useCallback((materialName: string | null) => {
-    setSelectedMaterial(materialName);
+  const toggleMaterial = useCallback((materialName: string | null) => {
+    setSelectedMaterial(prev => prev === materialName ? null : materialName);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -43,88 +40,67 @@ function App() {
     setHighlightMode('highlight');
   }, []);
 
-  const handleMaterialClick = useCallback((materialName: string) => {
-    if (selectedMaterial === materialName) {
-      setSelectedMaterial(null);
-    } else {
-      setSelectedMaterial(materialName);
-    }
-  }, [selectedMaterial]);
-
   return (
-    <Layout>
-      <Header title="IFC Materials Summary Viewer" />
+    <div className="app-layout">
+      <header className="app-header">
+        <h1 className="app-title">IFC Materials Summary Viewer</h1>
+      </header>
       
-      <MainContent
-        leftPanel={
-          <div className="viewer-with-upload">
-            <Upload
-              onUpload={upload}
-              isLoading={isLoading}
-              error={error}
-            />
-            {fileId && (
-              <Viewer
-                fileId={fileId}
-                selectedMaterial={selectedMaterial}
-                materialGroups={materialGroups}
-                highlightMode={highlightMode}
-                onClearSelection={() => selectMaterial(null)}
-                onReset={handleReset}
+      <main className="app-main">
+        <div className="app-content">
+          {/* Top Section: Viewer (65%) */}
+          <div className="viewer-section">
+            <div className="viewer-with-upload">
+              <Upload
+                onUpload={upload}
+                isLoading={isLoading}
+                error={error}
               />
-            )}
+              {fileId && (
+                <Viewer
+                  fileId={fileId}
+                  selectedMaterial={selectedMaterial}
+                  materialGroups={materialGroups}
+                  highlightMode={highlightMode}
+                  onClearSelection={() => toggleMaterial(null)}
+                  onReset={handleReset}
+                />
+              )}
+            </div>
           </div>
-        }
-        rightPanel={
-          fileId && materialGroups.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '8px' }}>
-              <div style={{
-                marginBottom: '8px',
-                display: 'flex',
-                gap: '8px',
-                padding: '8px',
-                backgroundColor: '#2a2a3e',
-                borderRadius: '4px'
-              }}>
-                <button
-                  onClick={() => setHighlightMode('highlight')}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    backgroundColor: highlightMode === 'highlight' ? '#bcf124' : '#1a1a2e',
-                    color: highlightMode === 'highlight' ? '#1a1a2e' : '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Highlight
-                </button>
-                <button
-                  onClick={() => setHighlightMode('xray')}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    backgroundColor: highlightMode === 'xray' ? '#bcf124' : '#1a1a2e',
-                    color: highlightMode === 'xray' ? '#1a1a2e' : '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  X-Ray
-                </button>
+          
+          {/* Bottom Section: Table (35%) */}
+          {fileId && materialGroups.length > 0 && (
+            <div className="table-section">
+              <div className="table-controls">
+                <div className="mode-toggle-container">
+                  <button
+                    className={`mode-button ${highlightMode === 'highlight' ? 'active' : ''}`}
+                    onClick={() => setHighlightMode('highlight')}
+                  >
+                    Highlight
+                  </button>
+                  <button
+                    className={`mode-button ${highlightMode === 'xray' ? 'active-xray' : ''}`}
+                    onClick={() => setHighlightMode('xray')}
+                  >
+                    X-Ray
+                  </button>
+                </div>
               </div>
 
-              <MaterialsTable
-                materialGroups={materialGroups}
-                onMaterialClick={handleMaterialClick}
-              />
+              <div className="table-scroll-container">
+                <MaterialsTable
+                  materialGroups={materialGroups}
+                  onMaterialClick={toggleMaterial}
+                  selectedMaterial={selectedMaterial}
+                />
+              </div>
             </div>
-          ) : null
-        }
-      />
-    </Layout>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 

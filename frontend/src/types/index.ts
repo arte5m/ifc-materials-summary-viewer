@@ -9,6 +9,8 @@ export interface UploadResponse {
 
 export interface MaterialGroup {
   materialGroup: string;
+  hasMaterial: number;
+  elementClass: string | null;
   elementCount: number;
   totalArea: number | null;
   totalVolume: number | null;

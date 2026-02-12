@@ -2,9 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import upload, export, summary
 from contextlib import asynccontextmanager
-import logging
-import signal
-import sys
 from app.services.file_storage import get_file_storage
 
 
@@ -16,9 +13,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="IFC Materials Summary Viewer API", lifespan=lifespan)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
 # Configure CORS
 app.add_middleware(

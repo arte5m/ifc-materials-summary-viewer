@@ -4,6 +4,7 @@ import * as OBC from '@thatopen/components';
 import * as OBCF from '@thatopen/components-front';
 import * as OBF from '@thatopen/fragments';
 import { MaterialGroup } from '../types';
+import { getWorkerUrl, revokeWorkerUrl } from '../utils/worker';
 
 interface Props {
   fileId: string;
@@ -22,10 +23,14 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
   const modelRef = useRef<OBF.FragmentsModel | null>(null);
   const fileIdRef = useRef<string | null>(null);
   const worldRef = useRef<any>(null);
+  const workerUrlRef = useRef<string | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const handleResizeRef = useRef<(() => void) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [conversionProgress, setConversionProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [modelLoadedId, setModelLoadedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -36,7 +41,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         const worlds = components.get(OBC.Worlds);
         const world = worlds.create<
           OBC.SimpleScene,
-          OBC.SimpleCamera,
+          OBC.OrthoPerspectiveCamera,
           OBC.SimpleRenderer
         >();
 
@@ -44,9 +49,8 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         world.scene.setup();
         world.scene.three.background = null;
         world.renderer = new OBC.SimpleRenderer(components, containerRef.current!);
-        world.camera = new OBC.SimpleCamera(components);
-        await world.camera.controls.setLookAt(10, 10, 10, 0, 0, 0);
-
+        world.camera = new OBC.OrthoPerspectiveCamera(components);
+        await world.camera.controls.setLookAt(68, 23, -8.5, 21.5, -5.5, 23);        
         const canvas = containerRef.current!.querySelector('canvas');
         if (canvas) {
           canvas.addEventListener('webglcontextlost', (event) => {
@@ -67,18 +71,34 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           },
         });
 
-        const githubUrl = "https://thatopen.github.io/engine_fragment/resources/worker.mjs";
-        const fetchedUrl = await fetch(githubUrl);
-        const workerBlob = await fetchedUrl.blob();
-        const workerFile = new File([workerBlob], "worker.mjs", {
-          type: "text/javascript",
-        });
-        const workerUrl = URL.createObjectURL(workerFile);
+        if (!workerUrlRef.current) {
+          workerUrlRef.current = await getWorkerUrl();
+        }
         const fragments = components.get(OBC.FragmentsManager);
-        fragments.init(workerUrl);
+        fragments.init(workerUrlRef.current);
         fragmentsRef.current = fragments;
 
         world.camera.controls.addEventListener("update", () => fragments.core.update());
+
+        // Handle window/container resize to prevent model stretching
+        handleResizeRef.current = () => {
+          if (!containerRef.current || !world.renderer || !world.camera) return;
+          
+          const width = containerRef.current.clientWidth;
+          const height = containerRef.current.clientHeight;
+          
+          // Update renderer size (false = don't update CSS style)
+          world.renderer.three.setSize(width, height, false);
+          
+          // Update camera aspect ratio to prevent stretching
+          world.camera.updateAspect();
+        };
+        
+        // Use ResizeObserver for container resize detection
+        if (containerRef.current) {
+          resizeObserverRef.current = new ResizeObserver(handleResizeRef.current);
+          resizeObserverRef.current.observe(containerRef.current);
+        }
 
         fragments.list.onItemSet.add(async ({ value: model }) => {
           model.useCamera(world.camera.three);
@@ -88,6 +108,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           worldRef.current = world;
           modelRef.current = model;
           setIsLoading(false);
+          setModelLoadedId(fileId);
         });
 
         fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
@@ -102,7 +123,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         highlighter.setup({
           world,
           selectMaterialDefinition: {
-            color: new THREE.Color("#FFFF00"),
+            color: new THREE.Color("#b73f74"),
             opacity: 1,
             transparent: false,
             renderedFaces: 0,
@@ -111,10 +132,9 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         highlighterRef.current = highlighter;
 
         highlighter.styles.set('xray', {
-          color: new THREE.Color("#ffffff"),
-          opacity: 0.15,
+          color: new THREE.Color("#b5decc"),
+          opacity: 0.2,
           transparent: true,
-          depthTest: true,
           renderedFaces: 0,
         });
 
@@ -130,17 +150,25 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
 
     return () => {
       try {
-        if (modelRef.current && fragmentsRef.current) {
-          fragmentsRef.current.core.dispose();
+        if (resizeObserverRef.current) {
+          resizeObserverRef.current.disconnect();
+          resizeObserverRef.current = null;
+        }
+        
+        if (modelRef.current) {
+          worldRef.current?.scene.three.remove(modelRef.current.object);
+          modelRef.current.dispose();
           modelRef.current = null;
         }
 
         componentsRef.current?.dispose();
         
+        revokeWorkerUrl();
+        workerUrlRef.current = null;
+        
         componentsRef.current = null;
         fragmentsRef.current = null;
         highlighterRef.current = null;
-        modelRef.current = null;
         fileIdRef.current = null;
       } catch {
       }
@@ -206,6 +234,25 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
       highlighter.clear('select');
       highlighter.clear('xray');
       
+      // Handle xray mode with no selection - show all elements at 15%
+      if (!selectedMaterial && highlightMode === 'xray') {
+        try {
+          const allIds = await modelRef.current.getLocalIds();
+          const modelId = modelRef.current.modelId;
+          
+          if (!modelId || allIds.length === 0) {
+            return;
+          }
+          
+          const allIdMap: OBC.ModelIdMap = {};
+          allIdMap[modelId] = new Set(allIds);
+          await highlighter.highlightByID('xray', allIdMap, true);
+        } catch (err) {
+          // Silently fail
+        }
+        return;
+      }
+      
       if (!selectedMaterial) {
         return;
       }
@@ -251,43 +298,50 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
     };
 
     highlightMaterial();
-  }, [selectedMaterial, materialGroups, highlightMode]);
+  }, [selectedMaterial, materialGroups, highlightMode, modelLoadedId]);
 
   const handleReset = useCallback(async () => {
+    if (!fileId || !componentsRef.current || !fragmentsRef.current || !worldRef.current) {
+      return;
+    }
+
+    // Clear highlights
     if (highlighterRef.current) {
       highlighterRef.current.clear('select');
       highlighterRef.current.clear('xray');
     }
 
+    // Notify parent to clear selection
     if (onClearSelection) {
       onClearSelection();
     }
 
+    // Reset highlight mode to default
     if (onReset) {
       onReset();
     }
 
-    if (!fileId || !componentsRef.current || !fragmentsRef.current || !worldRef.current) {
-      return;
-    }
-
+    // Dispose current model
     if (modelRef.current) {
       worldRef.current.scene.three.remove(modelRef.current.object);
-      await modelRef.current.dispose();
+      modelRef.current.dispose();
       modelRef.current = null;
     }
 
+    // Reset state
     fileIdRef.current = null;
+    setModelLoadedId(null);
     setIsLoading(true);
     setConversionProgress(0);
     setError(null);
 
+    // Reload from IFC
     try {
       const response = await fetch(`/api/upload/${fileId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch IFC file');
       }
-
+      
       const data = await response.arrayBuffer();
       const buffer = new Uint8Array(data);
 
@@ -299,36 +353,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           },
         },
       });
-
-      const maxWait = 10000;
-      const checkInterval = 100;
-      let waited = 0;
-
-      const checkModel = setInterval(() => {
-        waited += checkInterval;
-
-        for (const [_, model] of fragmentsRef.current!.list) {
-          if (model && !modelRef.current) {
-            clearInterval(checkModel);
-
-            model.useCamera(worldRef.current.camera.three);
-            worldRef.current.scene.three.add(model.object);
-            fragmentsRef.current!.core.update(true);
-
-            modelRef.current = model;
-            fileIdRef.current = fileId;
-            setIsLoading(false);
-            break;
-          }
-        }
-
-        if (waited >= maxWait) {
-          clearInterval(checkModel);
-          setError('Model load timeout');
-          setIsLoading(false);
-        }
-      }, checkInterval);
-
+      // Note: isLoading will be set to false by onItemSet handler
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reload model');
       setIsLoading(false);
@@ -336,17 +361,20 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
   }, [fileId, onClearSelection, onReset]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+    <div className="viewer-container">
+      <div ref={containerRef} className="viewer-canvas-container" />
       
       {isLoading && (
-        <div style={overlayStyle}>
-          <div>Converting IFC... {conversionProgress}%</div>
+        <div className="viewer-overlay">
+          <div className="loading-content">
+            <div className="spinner"></div>
+            <div>Loading IFC... {conversionProgress}%</div>
+          </div>
         </div>
       )}
       
       {error && (
-        <div style={{...overlayStyle, backgroundColor: 'rgba(200,50,50,0.9)'}}>
+        <div className="viewer-overlay error">
           <div>{error}</div>
         </div>
       )}
@@ -354,7 +382,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
       {!isLoading && modelRef.current && (
         <button 
           onClick={handleReset}
-          style={resetButtonStyle}
+          className="viewer-reset-button"
         >
           Rerender Model
         </button>
@@ -362,27 +390,3 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
     </div>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: 'absolute', 
-  top: 0, left: 0, right: 0, bottom: 0,
-  display: 'flex', 
-  alignItems: 'center', 
-  justifyContent: 'center',
-  backgroundColor: 'rgba(26, 26, 46, 0.95)', 
-  color: '#ffffff',
-  zIndex: 10,
-};
-
-const resetButtonStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '10px',
-  right: '10px',
-  padding: '8px 16px',
-   backgroundColor: '#FFFF00',
-  color: '#1a1a2e',
-  border: 'none',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  zIndex: 20,
-};

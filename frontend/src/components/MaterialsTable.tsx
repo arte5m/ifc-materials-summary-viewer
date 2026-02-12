@@ -4,9 +4,10 @@ import { MaterialGroup } from '../types';
 interface Props {
   materialGroups: MaterialGroup[];
   onMaterialClick: (materialName: string) => void;
+  selectedMaterial?: string | null;
 }
 
-export function MaterialsTable({ materialGroups, onMaterialClick }: Props) {
+export function MaterialsTable({ materialGroups, onMaterialClick, selectedMaterial }: Props) {
   const handleExport = useCallback(() => {
     if (materialGroups.length === 0) {
       return;
@@ -63,20 +64,20 @@ export function MaterialsTable({ materialGroups, onMaterialClick }: Props) {
   }, [materialGroups]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
-      <div style={{ flex: 1, overflow: 'auto', border: '1px solid #444', borderRadius: '4px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+    <div className="materials-table-wrapper">
+      <table className="materials-table-dark">
           <thead>
-            <tr style={{ backgroundColor: '#2a2a3e', position: 'sticky', top: 0 }}>
-              <th style={{ padding: '10px 8px', textAlign: 'left', borderBottom: '2px solid #555', color: '#fff' }}>Material</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #555', color: '#fff' }}>Elements</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #555', color: '#fff' }}>Area (m²)</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #555', color: '#fff' }}>Volume (m³)</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #555', color: '#fff' }}>Weight (kg)</th>
+            <tr>
+              <th>Material</th>
+              <th className="numeric">Elements</th>
+              <th className="numeric">Area (m²)</th>
+              <th className="numeric">Volume (m³)</th>
+              <th className="numeric" title="Weight is calculated using default density (2400 kg/m³) and requires volume data">Weight (kg)</th>
             </tr>
           </thead>
           <tbody>
-            {materialGroups.map((group, index) => {
+            {materialGroups.map((group) => {
+              const isSelected = selectedMaterial === group.materialGroup;
               const hasMissingArea = group.totalArea === null || group.totalArea === undefined;
               const hasMissingVolume = group.totalVolume === null || group.totalVolume === undefined;
               const hasMissingData = hasMissingArea || hasMissingVolume;
@@ -85,48 +86,34 @@ export function MaterialsTable({ materialGroups, onMaterialClick }: Props) {
                 <tr
                   key={group.materialGroup}
                   onClick={() => onMaterialClick(group.materialGroup)}
-                  style={{
-                    cursor: 'pointer',
-                    backgroundColor: index % 2 === 0 ? '#1e1e2e' : '#252538',
-                    borderBottom: '1px solid #333'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#3a3a5e'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#1e1e2e' : '#252538'}
+                  className={isSelected ? 'selected' : ''}
                 >
-                  <td style={{ padding: '8px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <td className="material-cell">
                     {hasMissingData && (
-                      <span style={{ color: '#ff6b6b', fontSize: '14px' }} title={hasMissingArea && hasMissingVolume ? 'missing area and volume' : hasMissingArea ? 'missing area' : 'missing volume'}>
+                      <span
+                        className="warning-indicator"
+                        title={hasMissingArea && hasMissingVolume ? 'missing area and volume' : hasMissingArea ? 'missing area' : 'missing volume'}
+                      >
                         ⚠️
                       </span>
                     )}
                     {group.materialGroup}
                   </td>
-                  <td style={{ padding: '8px', textAlign: 'right', color: '#ccc' }}>{group.elementCount}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', color: hasMissingArea ? '#ff6b6b' : '#ccc' }}>{group.totalArea?.toFixed(2) || '-'}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', color: hasMissingVolume ? '#ff6b6b' : '#ccc' }}>{group.totalVolume?.toFixed(2) || '-'}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', color: '#ccc' }}>{group.totalWeight?.toFixed(2) || '-'}</td>
+                  <td className="numeric">{group.elementCount}</td>
+                  <td className={`numeric ${hasMissingArea ? 'missing-data' : ''}`}>
+                    {group.totalArea?.toFixed(2) || '-'}
+                  </td>
+                  <td className={`numeric ${hasMissingVolume ? 'missing-data' : ''}`}>
+                    {group.totalVolume?.toFixed(2) || '-'}
+                  </td>
+                  <td className="numeric">{group.totalWeight?.toFixed(2) || '-'}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </table>
 
-      <button
-        onClick={handleExport}
-        style={{
-          marginTop: '12px',
-          padding: '10px 16px',
-          backgroundColor: '#bcf124',
-          color: '#1a1a2e',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          fontSize: '14px',
-          width: '100%'
-        }}
-      >
+      <button onClick={handleExport} className="export-csv-button">
         Export CSV
       </button>
     </div>
