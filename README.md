@@ -1,4 +1,4 @@
-# IFC Materials Summary Viewer
+# IFC Materials Viewer
 
 A full-stack web application for loading IFC (Industry Foundation Classes) files, extracting material information, and visualizing elements in 3D with material-based selection and filtering.
 
@@ -85,11 +85,11 @@ Weight is calculated using:
 - Weight is only calculated when volume is available. If volume is missing, weight is displayed as —
 
 ### 3D Visualization
-- IFC files are converted to FRAG in frontend, on browser side. @thatopen/fragments is used;
-- GlobalID mapping is used to link IFC elements to model geometry.
+- IFC files are converted to FRAG in frontend, on browser side. @thatopen/fragments is used
+- GlobalID mapping is used to link IFC elements to model geometry
 
 ### Known Limitations
-- WebGL context loss may occur with complex models - reload page to recover.
+- WebGL context loss may occur with complex models - reload page to recover
 
 ### Assumptions
 1. Every material group default density is 2400 kg/m³
