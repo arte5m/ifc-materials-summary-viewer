@@ -9,9 +9,12 @@ function App() {
   const [fileId, setFileId] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isViewerLoading, setIsViewerLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [materialGroups, setMaterialGroups] = useState<MaterialGroup[]>([]);
   const [highlightMode, setHighlightMode] = useState<'highlight' | 'xray'>('highlight');
+
+  const isAnyLoading = isLoading || isViewerLoading;
 
   const upload = useCallback(async (file: File) => {
     setIsLoading(true);
@@ -40,10 +43,14 @@ function App() {
     setHighlightMode('highlight');
   }, []);
 
+  const handleHighlightModeChange = useCallback((mode: 'highlight' | 'xray') => {
+    setHighlightMode(mode);
+  }, []);
+
   return (
     <div className="app-layout">
       <header className="app-header">
-        <h1 className="app-title">IFC Materials Summary Viewer</h1>
+        <h1 className="app-title">IFC Materials Viewer</h1>
       </header>
       
       <main className="app-main">
@@ -53,7 +60,7 @@ function App() {
             <div className="viewer-with-upload">
               <Upload
                 onUpload={upload}
-                isLoading={isLoading}
+                isLoading={isAnyLoading}
                 error={error}
               />
               {fileId && (
@@ -62,8 +69,11 @@ function App() {
                   selectedMaterial={selectedMaterial}
                   materialGroups={materialGroups}
                   highlightMode={highlightMode}
+                  onHighlightModeChange={handleHighlightModeChange}
                   onClearSelection={() => toggleMaterial(null)}
                   onReset={handleReset}
+                  onLoadingChange={setIsViewerLoading}
+                  onElementClicked={(materialGroup) => setSelectedMaterial(materialGroup)}
                 />
               )}
             </div>
@@ -72,23 +82,6 @@ function App() {
           {/* Bottom Section: Table (35%) */}
           {fileId && materialGroups.length > 0 && (
             <div className="table-section">
-              <div className="table-controls">
-                <div className="mode-toggle-container">
-                  <button
-                    className={`mode-button ${highlightMode === 'highlight' ? 'active' : ''}`}
-                    onClick={() => setHighlightMode('highlight')}
-                  >
-                    Highlight
-                  </button>
-                  <button
-                    className={`mode-button ${highlightMode === 'xray' ? 'active-xray' : ''}`}
-                    onClick={() => setHighlightMode('xray')}
-                  >
-                    X-Ray
-                  </button>
-                </div>
-              </div>
-
               <div className="table-scroll-container">
                 <MaterialsTable
                   materialGroups={materialGroups}

@@ -5,17 +5,21 @@ import * as OBCF from '@thatopen/components-front';
 import * as OBF from '@thatopen/fragments';
 import { MaterialGroup } from '../types';
 import { getWorkerUrl, revokeWorkerUrl } from '../utils/worker';
+import { ViewerControls } from './ViewerControls';
 
 interface Props {
   fileId: string;
   selectedMaterial: string | null;
   materialGroups: MaterialGroup[];
   highlightMode?: 'highlight' | 'xray';
+  onHighlightModeChange?: (mode: 'highlight' | 'xray') => void;
   onClearSelection?: () => void;
   onReset?: () => void;
+  onLoadingChange?: (isLoading: boolean) => void;
+  onElementClicked?: (materialGroup: string) => void;
 }
 
-export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode = 'highlight', onClearSelection, onReset }: Props) {
+export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode = 'highlight', onHighlightModeChange, onClearSelection, onReset, onLoadingChange, onElementClicked }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const componentsRef = useRef<OBC.Components | null>(null);
   const fragmentsRef = useRef<OBC.FragmentsManager | null>(null);
@@ -31,6 +35,10 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
   const [conversionProgress, setConversionProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [modelLoadedId, setModelLoadedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -223,6 +231,62 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
     loadIfc();
   }, [fileId, isInitialized]);
 
+  // Listen to element clicks and auto-select material group
+  useEffect(() => {
+    if (!highlighterRef.current) return;
+    if (!fragmentsRef.current) return;
+    if (materialGroups.length === 0) return;
+
+    const handleElementClick = async (modelIdMap: OBC.ModelIdMap) => {
+      try {
+        // Extract the first clicked element
+        for (const [modelId, localIds] of Object.entries(modelIdMap)) {
+          if (localIds.size === 0) continue;
+
+          const model = fragmentsRef.current?.list.get(modelId);
+          if (!model) continue;
+
+          // Get the first clicked element's data (must pass array of IDs)
+          const firstLocalId = [...localIds][0];
+          const itemsData = await model.getItemsData([firstLocalId]);
+          if (!itemsData || itemsData.length === 0) continue;
+
+          const itemData = itemsData[0] as any;
+
+          // Extract GUID from element data (fragment data stores it as _guid.value)
+          const clickedGuid = itemData._guid?.value || itemData.GlobalId || itemData.globalId || itemData.Guid;
+          if (!clickedGuid) continue;
+
+          // Find material group containing this GUID (CURRENT, not stale!)
+          const materialGroup = materialGroups.find(group =>
+            group.elementIds.includes(clickedGuid)
+          );
+
+          if (materialGroup && onElementClicked) {
+            onElementClicked(materialGroup.materialGroup);
+          }
+          break;
+        }
+      } catch (err) {
+        // Silently fail - click highlighting still works
+      }
+    };
+
+    // Register highlight listener
+    highlighterRef.current.events.select.onHighlight.add(handleElementClick);
+
+    // Cleanup: Remove listener when dependencies change
+    return () => {
+      try {
+        if (highlighterRef.current) {
+          highlighterRef.current.events.select.onHighlight.remove(handleElementClick);
+        }
+      } catch (err) {
+        // Silently fail - may already be removed
+      }
+    };
+  }, [materialGroups, onElementClicked, fragmentsRef]);
+
   useEffect(() => {
     const highlightMaterial = async () => {
       if (!highlighterRef.current || !modelRef.current) {
@@ -368,7 +432,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         <div className="viewer-overlay">
           <div className="loading-content">
             <div className="spinner"></div>
-            <div>Loading IFC... {conversionProgress}%</div>
+            <div>Loading Model... {conversionProgress}%</div>
           </div>
         </div>
       )}
@@ -380,12 +444,12 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
       )}
       
       {!isLoading && modelRef.current && (
-        <button 
-          onClick={handleReset}
-          className="viewer-reset-button"
-        >
-          Rerender Model
-        </button>
+        <ViewerControls
+          highlightMode={highlightMode}
+          onHighlightModeChange={onHighlightModeChange || (() => {})}
+          onReset={handleReset}
+          disabled={false}
+        />
       )}
     </div>
   );

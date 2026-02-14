@@ -224,12 +224,12 @@ body {
 
 .upload-button-disabled {
   cursor: not-allowed;
-  background: var(--color-accent);
+  background: #6d7e77;
   color: #ffffff;
 }
 
 .upload-button-disabled:hover {
-  background: var(--color-accent-hover);
+  background: #6d7e77;
 }
 
 .upload-error {
@@ -296,70 +296,98 @@ body {
   text-align: center;
 }
 
-.viewer-reset-button {
+/* ============================================
+   VIEWER CONTROLS (Top-Right Overlay)
+   ============================================ */
+
+.viewer-controls {
   position: absolute;
   top: var(--spacing-md);
   right: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background-color: var(--color-button-primary);
-  color: #000000;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  z-index: 20;
-  font-weight: 500;
-}
-
-.viewer-reset-button:hover {
-  background-color: var(--color-button-primary-hover);
-}
-
-/* ============================================
-   MODE TOGGLE
-   ============================================ */
-
-.mode-toggle-container {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--spacing-sm);
+  background: #6d7e77;
   padding: var(--spacing-sm);
-  background-color: var(--color-bg-darker);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  min-width: 120px;
 }
 
-.mode-button {
+.controls-group {
+  display: flex;
+  gap: 2px;
+  justify-content: stretch;
+}
+
+.controls-group .control-button {
   flex: 1;
-  padding: var(--spacing-sm);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  border: none;
+}
+
+
+.control-button {
+  padding: 6px 14px;
+  background: #6d7e77;
+  border: 1px solid #ffffff;
+  color: #ffffff;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color var(--transition-normal);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-normal);
+  white-space: nowrap;
 }
 
-.mode-button:hover {
-  background-color: #e0e0e0;
+.control-button:hover:not(:disabled) {
+  background: #6d7e778f;
+  border-color: #ffffff;
 }
 
-.mode-button.active {
-  background-color: var(--color-accent);
-  color: #ffffff;
-  font-weight: 600;
+.control-button:disabled {
+  cursor: not-allowed;
 }
 
-.mode-button.active:hover {
-  background-color: var(--color-accent-hover);
-}
-
-.mode-button.active-xray {
-  background-color: #b5decc;
+/* Reset Button - Green background, BLACK text */
+.control-button.reset-button {
+  background: var(--color-button-primary);
+  border-color: var(--color-button-primary);
   color: #000000;
   font-weight: 600;
+  width: 100%;
 }
 
-.mode-button.active-xray:hover {
-  background-color: #9fc4b3;
+.control-button.reset-button:hover:not(:disabled) {
+  background: var(--color-button-primary-hover);
+  border-color: var(--color-button-primary-hover);
+}
+
+/* Highlight Mode - Pink background, BLACK text */
+.control-button.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #000000;
+}
+
+.control-button.active:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  color: #000000;
+}
+
+/* X-Ray Mode - Light blue background, BLACK text */
+.control-button.active-xray {
+  background: #b5decc;
+  border-color: #b5decc;
+  color: #000000;
+}
+
+.control-button.active-xray:hover {
+  background: #9fc4b3;
+  border-color: #9fc4b3;
+  color: #000000;
 }
 
 /* ============================================
