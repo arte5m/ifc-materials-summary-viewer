@@ -3,8 +3,8 @@ Upload endpoint for IFC files.
 Handles file upload and storage only.
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.services.file_storage import get_file_storage
 
@@ -25,7 +25,7 @@ async def upload_ifc(file: UploadFile = File(...)):
 
     Returns:
         JSON response with fileId, filename, status
-    
+
     Raises:
         HTTPException: 400 for invalid file, 413 for file too large
     """
@@ -64,7 +64,7 @@ async def upload_ifc(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Failed to upload IFC file: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/upload/{file_id}")
@@ -96,7 +96,7 @@ async def get_ifc_file(file_id: str):
 async def validate_ifc_schema(file_id: str):
     """
     Validate IFC file against schema using ifcopenshell.validate.
-    
+
     Returns:
         {
             "valid": bool,
@@ -109,29 +109,29 @@ async def validate_ifc_schema(file_id: str):
     """
     import ifcopenshell
     import ifcopenshell.validate
-    
+
     storage = get_file_storage()
     file_path = storage.get_file_path(file_id)
-    
+
     if not file_path:
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     try:
         # Create json_logger instance
         logger = ifcopenshell.validate.json_logger()
-        
+
         # Run validation with correct parameters
         ifcopenshell.validate.validate(file_path, logger, express_rules=True)
-        
+
         # Get results from logger.statements
         errors = logger.statements
         error_count = len(errors)
-        
+
         if error_count == 0:
             message = "✓ Valid"
         else:
             message = f"✗ {error_count} errors"
-        
+
         return {
             "valid": error_count == 0,
             "message": message,
@@ -140,7 +140,7 @@ async def validate_ifc_schema(file_id: str):
             "errors": [
                 {"message": str(e.get('message', e)) if isinstance(e, dict) else str(e)}
                 for e in errors
-            ],    
+            ],
         }
     except Exception as e:
         return {

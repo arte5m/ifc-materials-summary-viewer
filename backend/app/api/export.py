@@ -3,11 +3,12 @@ Export endpoint for CSV generation.
 Exports material summary as a downloadable CSV file.
 """
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 import csv
 import io
-from typing import Dict, Any
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.services.file_storage import get_file_storage
 from app.services.ifc_loader import process_ifc_materials
@@ -15,7 +16,7 @@ from app.services.ifc_loader import process_ifc_materials
 router = APIRouter()
 
 
-def generate_notes(group: Dict[str, Any]) -> str:
+def generate_notes(group: dict[str, Any]) -> str:
     """
     Generate notes text for missing quantities.
 
@@ -134,4 +135,4 @@ async def export_csv(file_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to export CSV: {str(e)}") from e

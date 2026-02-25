@@ -28,3 +28,6 @@ dist-ssr
 
 .git
 .ruff_cache
+.qwen
+.specify
+ifc-materials-summary-viewer.md

@@ -8,7 +8,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Optional
 
 
 class FileStorage:
@@ -37,16 +37,16 @@ class FileStorage:
         else:
             self.metadata_file = Path(metadata_file)
 
-        self._metadata: Dict[str, Dict[str, Any]] = {}
+        self._metadata: dict[str, dict[str, Any]] = {}
         self._load_metadata()
 
     def _load_metadata(self):
         """Load metadata from JSON file."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, "r") as f:
+                with open(self.metadata_file) as f:
                     self._metadata = json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 self._metadata = {}
         else:
             self._metadata = {}
@@ -56,7 +56,7 @@ class FileStorage:
         try:
             with open(self.metadata_file, "w") as f:
                 json.dump(self._metadata, f, indent=2)
-        except IOError:
+        except OSError:
             pass
 
     def save_file(self, file_content: bytes, original_filename: str) -> str:

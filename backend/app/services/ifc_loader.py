@@ -1,8 +1,9 @@
-import ifcopenshell
-import ifcopenshell.util.selector
-import ifcopenshell.util.element
-from typing import Tuple, Optional, List, Dict, TypedDict
 from collections import defaultdict
+from typing import Optional, TypedDict
+
+import ifcopenshell
+import ifcopenshell.util.element
+import ifcopenshell.util.selector
 
 
 class MaterialGroup(TypedDict):
@@ -14,7 +15,7 @@ class MaterialGroup(TypedDict):
     totalVolume: float
     totalWeight: float
     missingQuantities: bool
-    elementIds: List[str]
+    elementIds: list[str]
 
 
 def get_ifcElements(path: str):
@@ -24,7 +25,7 @@ def get_ifcElements(path: str):
     return elements
 
 
-def get_ifcElement_quantities(element) -> Tuple[Optional[float], Optional[float]]:
+def get_ifcElement_quantities(element) -> tuple[Optional[float], Optional[float]]:
     """Extract area and volume from IFC element"""
     area = None
     volume = None
@@ -103,7 +104,7 @@ def get_element_group_key(element):
 
 def process_ifc_materials(
     file_path: str, default_density: float = 2400.0
-) -> List[Dict]:
+) -> list[dict]:
     """
     Process IFC file and extract material groups with quantities.
     Each element contributes to ONE material group.
@@ -119,7 +120,7 @@ def process_ifc_materials(
     elements = get_ifcElements(file_path)
 
     # Dictionary to group by material
-    groups: Dict[str, MaterialGroup] = defaultdict(  # type: ignore[assignment]
+    groups: dict[str, MaterialGroup] = defaultdict(  # type: ignore[assignment]
         lambda: {
             "materialGroup": None,
             "hasMaterial": 1,
@@ -162,7 +163,7 @@ def process_ifc_materials(
 
     # Calculate weights and format output
     result = []
-    for group_key, data in groups.items():
+    for _, data in groups.items():
         # Set to None if no quantities were added (all were 0)
         total_area = data["totalArea"] if data["totalArea"] > 0 else None
         total_volume = data["totalVolume"] if data["totalVolume"] > 0 else None

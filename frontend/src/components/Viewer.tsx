@@ -134,7 +134,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
             box.getBoundingSphere(sphere);
             await world.camera.controls.fitToSphere(sphere, true);
             boxer.list.clear();
-          } catch (err) {
+          } catch {
             // Silently fail - use default camera position
           }
 
@@ -165,8 +165,8 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
 
         componentsRef.current = components;
         setIsInitialized(true);
-        
-      } catch (err) {
+
+      } catch {
         setError('Failed to initialize 3D viewer');
       }
     };
@@ -190,12 +190,13 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         
         revokeWorkerUrl();
         workerUrlRef.current = null;
-        
+
         componentsRef.current = null;
         fragmentsRef.current = null;
         highlighterRef.current = null;
         fileIdRef.current = null;
       } catch {
+        // Silently fail - cleanup best effort
       }
     };
   }, []);
@@ -282,7 +283,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           }
           break;
         }
-      } catch (err) {
+      } catch {
         // Silently fail - click highlighting still works
       }
     };
@@ -296,7 +297,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         if (highlighterRef.current) {
           highlighterRef.current.events.select.onHighlight.remove(handleElementClick);
         }
-      } catch (err) {
+      } catch {
         // Silently fail - may already be removed
       }
     };
@@ -318,26 +319,26 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         try {
           const allIds = await modelRef.current.getLocalIds();
           const modelId = modelRef.current.modelId;
-          
+
           if (!modelId || allIds.length === 0) {
             return;
           }
-          
+
           const allIdMap: any = {};
           allIdMap[modelId] = new Set(allIds);
           await highlighter.highlightByID('xray', allIdMap, true);
-        } catch (err) {
+        } catch {
           // Silently fail
         }
         return;
       }
-      
+
       if (!selectedMaterial) {
         return;
       }
 
       const group = materialGroups.find(g => g.materialGroup === selectedMaterial);
-      
+
       if (!group || !group.elementIds || group.elementIds.length === 0) {
         return;
       }
@@ -371,8 +372,9 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         } else {
           await highlighter.highlightByID('select', selectedIdMap, true);
         }
-         
-      } catch (err) {
+
+      } catch {
+        // Silently fail - highlighting still works
       }
     };
 
