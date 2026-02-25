@@ -1,6 +1,6 @@
-import { UploadResponse, MaterialGroup } from '../types';
+import { UploadResponse, MaterialGroup, ValidationResponse } from '../types';
 
-export type { MaterialGroup };
+export type { MaterialGroup, ValidationResponse };
 
 const API_BASE_URL = '/api';
 
@@ -27,6 +27,19 @@ export async function getMaterialSummary(fileId: string): Promise<MaterialGroup[
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Failed to get summary' }));
     throw new Error(error.detail || 'Failed to get summary');
+  }
+
+  return response.json();
+}
+
+export async function validateIFC(fileId: string): Promise<ValidationResponse> {
+  const response = await fetch(`${API_BASE_URL}/upload/${fileId}/validate`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Validation failed' }));
+    throw new Error(error.detail || 'Validation failed');
   }
 
   return response.json();

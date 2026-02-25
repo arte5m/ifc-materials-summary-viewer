@@ -4,7 +4,6 @@ export interface UploadResponse {
   fileId: string;
   filename: string;
   status: string;
-  materialSummary: MaterialGroup[];
 }
 
 export interface MaterialGroup {
@@ -18,4 +17,19 @@ export interface MaterialGroup {
   totalWeight: number | null;
   elementIds: string[];
   missingQuantities: boolean;
+}
+
+export interface ValidationErrorDetail {
+  level: number;
+  message: string;
+  instance: string;
+}
+
+export interface ValidationResponse {
+  valid: boolean;
+  message: string;
+  errorCount: number;
+  warningCount: number;
+  errors: ValidationErrorDetail[];
+  warnings: ValidationErrorDetail[];
 }

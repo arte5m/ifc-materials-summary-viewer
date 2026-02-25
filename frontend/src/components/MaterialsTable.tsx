@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { MaterialGroup } from '../types';
 
 interface Props {
@@ -8,10 +8,15 @@ interface Props {
 }
 
 export function MaterialsTable({ materialGroups, onMaterialClick, selectedMaterial }: Props) {
+  const [isExporting, setIsExporting] = useState(false);
+
   const handleExport = useCallback(() => {
     if (materialGroups.length === 0) {
       return;
     }
+
+    setIsExporting(true);
+    try {
 
     const headers = [
       'MaterialGroup',
@@ -61,11 +66,22 @@ export function MaterialsTable({ materialGroups, onMaterialClick, selectedMateri
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
   }, [materialGroups]);
 
   return (
     <div className="materials-table-wrapper">
-      <table className="materials-table-dark">
+      {materialGroups.length === 0 ? (
+        <div className="empty-state">
+          <p>No materials found in this IFC file.</p>
+          <p className="empty-state-hint">
+            This may happen if the file has no material assignments or quantity data.
+          </p>
+        </div>
+      ) : (
+        <table className="materials-table-dark">
           <thead>
             <tr>
               <th>Material</th>
@@ -112,10 +128,17 @@ export function MaterialsTable({ materialGroups, onMaterialClick, selectedMateri
             })}
           </tbody>
       </table>
+      )}
 
-      <button onClick={handleExport} className="export-csv-button">
-        Export CSV
-      </button>
+      {materialGroups.length > 0 && (
+        <button 
+          onClick={handleExport} 
+          className="export-csv-button"
+          disabled={isExporting}
+        >
+          {isExporting ? 'Exporting...' : 'Export CSV'}
+        </button>
+      )}
     </div>
   );
 }

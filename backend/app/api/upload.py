@@ -8,6 +8,9 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from app.services.file_storage import get_file_storage
 
+# File size limit constant
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100 MB
+
 router = APIRouter()
 
 
@@ -22,6 +25,9 @@ async def upload_ifc(file: UploadFile = File(...)):
 
     Returns:
         JSON response with fileId, filename, status
+    
+    Raises:
+        HTTPException: 400 for invalid file, 413 for file too large
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -31,6 +37,13 @@ async def upload_ifc(file: UploadFile = File(...)):
 
     try:
         content = await file.read()
+
+        # File size validation
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB"
+            )
 
         if len(content) == 0:
             raise HTTPException(status_code=400, detail="Empty file uploaded")
@@ -77,3 +90,64 @@ async def get_ifc_file(file_id: str):
     return FileResponse(
         path=file_path, filename=f"{file_id}.ifc", media_type="application/octet-stream"
     )
+
+
+@router.post("/upload/{file_id}/validate")
+async def validate_ifc_schema(file_id: str):
+    """
+    Validate IFC file against schema using ifcopenshell.validate.
+    
+    Returns:
+        {
+            "valid": bool,
+            "message": str,
+            "errorCount": int,
+            "warningCount": int,
+            "errors": [...],
+            "warnings": [...]
+        }
+    """
+    import ifcopenshell
+    import ifcopenshell.validate
+    
+    storage = get_file_storage()
+    file_path = storage.get_file_path(file_id)
+    
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    try:
+        # Create json_logger instance
+        logger = ifcopenshell.validate.json_logger()
+        
+        # Run validation with correct parameters
+        ifcopenshell.validate.validate(file_path, logger, express_rules=True)
+        
+        # Get results from logger.statements
+        errors = logger.statements
+        error_count = len(errors)
+        
+        if error_count == 0:
+            message = "✓ Valid"
+        else:
+            message = f"✗ {error_count} errors"
+        
+        return {
+            "valid": error_count == 0,
+            "message": message,
+            "errorCount": error_count,
+            "warningCount": 0,
+            "errors": [
+                {"message": str(e.get('message', e)) if isinstance(e, dict) else str(e)}
+                for e in errors
+            ],    
+        }
+    except Exception as e:
+        return {
+            "valid": False,
+            "message": f"✗ Error: {str(e)}",
+            "errorCount": 1,
+            "warningCount": 0,
+            "errors": [{"message": str(e)}],
+            "warnings": [],
+        }

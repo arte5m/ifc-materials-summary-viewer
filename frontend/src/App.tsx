@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Upload } from './components/Upload';
 import { Viewer } from './components/Viewer';
 import { MaterialsTable } from './components/MaterialsTable';
-import { uploadIFC, getMaterialSummary, MaterialGroup } from './services/api';
+import { uploadIFC, getMaterialSummary, validateIFC, MaterialGroup, ValidationResponse } from './services/api';
 import './App.css';
 
 function App() {
@@ -13,6 +13,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [materialGroups, setMaterialGroups] = useState<MaterialGroup[]>([]);
   const [highlightMode, setHighlightMode] = useState<'highlight' | 'xray'>('highlight');
+  const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
+  const [isValiding, setIsValiding] = useState(false);
 
   const isAnyLoading = isLoading || isViewerLoading;
 
@@ -21,6 +23,7 @@ function App() {
     setError(null);
     setSelectedMaterial(null);
     setHighlightMode('highlight');
+    setValidationResult(null);
 
     try {
       const response = await uploadIFC(file);
@@ -33,6 +36,29 @@ function App() {
       setIsLoading(false);
     }
   }, []);
+
+  const validate = useCallback(async () => {
+    if (!fileId) return;
+    
+    setIsValiding(true);
+    setValidationResult(null);
+    
+    try {
+      const result = await validateIFC(fileId);
+      setValidationResult(result);
+    } catch (err) {
+      setValidationResult({
+        valid: false,
+        message: err instanceof Error ? err.message : 'Validation failed',
+        errorCount: 1,
+        warningCount: 0,
+        errors: [],
+        warnings: [],
+      });
+    } finally {
+      setIsValiding(false);
+    }
+  }, [fileId]);
 
   const toggleMaterial = useCallback((materialName: string | null) => {
     setSelectedMaterial(prev => prev === materialName ? null : materialName);
@@ -60,8 +86,12 @@ function App() {
             <div className="viewer-with-upload">
               <Upload
                 onUpload={upload}
+                onValidate={validate}
                 isLoading={isAnyLoading}
+                isValiding={isValiding}
                 error={error}
+                validationResult={validationResult}
+                hasFile={!!fileId}
               />
               {fileId && (
                 <Viewer

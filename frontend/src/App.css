@@ -226,6 +226,7 @@ body {
   cursor: not-allowed;
   background: #6d7e77;
   color: #ffffff;
+  opacity: 0.5;
 }
 
 .upload-button-disabled:hover {
@@ -537,4 +538,125 @@ body {
   .app-title {
     font-size: 20px;
   }
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.empty-state-hint {
+  font-size: 0.875rem;
+  color: #999;
+  margin-top: 0.5rem;
+}
+
+/* ============================================
+   VALIDATION BUTTON & RESULTS
+   ============================================ */
+
+/* Button Group */
+.button-group {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* File Info - Horizontal Layout */
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-sm);
+}
+
+.file-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.file-size {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+/* Validate Button */
+.validate-button {
+  padding: 6px var(--spacing-md);
+  background: #6d7e77;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.validate-button-disabled {
+  cursor: not-allowed;
+  background: #6d7e77;
+  color: #ffffff;
+  opacity: 0.5;
+}
+
+.validate-button-disabled:hover {
+  background: #95aca2;
+}
+
+/* Inline Validation Message */
+.validation-message {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  position: relative;
+}
+
+.validation-message.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.validation-message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  cursor: help;
+}
+
+/* Validation Details */
+.validation-details {
+  margin-top: var(--spacing-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.validation-details details {
+  cursor: pointer;
+}
+
+.validation-details summary {
+  color: var(--color-accent);
+  font-weight: 500;
+  outline: none;
+}
+
+.validation-details summary:hover {
+  color: var(--color-accent-hover);
+}
+
+.validation-details ul {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-lg);
+  list-style-type: disc;
+}
+
+.validation-details li {
+  margin-bottom: 4px;
 }

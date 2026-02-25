@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import * as OBC from '@thatopen/components';
 import * as OBCF from '@thatopen/components-front';
@@ -35,6 +35,17 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
   const [conversionProgress, setConversionProgress] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [modelLoadedId, setModelLoadedId] = useState<string | null>(null);
+
+  // Build GUID to material group lookup map for O(1) access
+  const guidToMaterialMap = useMemo(() => {
+    const map = new Map<string, string>();
+    materialGroups.forEach(group => {
+      group.elementIds.forEach(guid => {
+        map.set(guid, group.materialGroup);
+      });
+    });
+    return map;
+  }, [materialGroups]);
 
   useEffect(() => {
     onLoadingChange?.(isLoading);
@@ -83,10 +94,10 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           workerUrlRef.current = await getWorkerUrl();
         }
         const fragments = components.get(OBC.FragmentsManager);
-        fragments.init(workerUrlRef.current);
+        (fragments as any).init(workerUrlRef.current);
         fragmentsRef.current = fragments;
 
-        world.camera.controls.addEventListener("update", () => fragments.core.update());
+        world.camera.controls.addEventListener("update", () => (fragments as any).core.update());
 
         // Handle window/container resize to prevent model stretching
         handleResizeRef.current = () => {
@@ -111,20 +122,26 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         fragments.list.onItemSet.add(async ({ value: model }) => {
           model.useCamera(world.camera.three);
           world.scene.three.add(model.object);
-          await fragments.core.update(true);
+          await (fragments as any).core.update(true);
+
+          // Frame camera to fit model using BoundingBoxer
+          try {
+            const boxer = components.get(OBC.BoundingBoxer);
+            boxer.list.clear();
+            boxer.addFromModels();
+            const box = boxer.get();
+            const sphere = new THREE.Sphere();
+            box.getBoundingSphere(sphere);
+            await world.camera.controls.fitToSphere(sphere, true);
+            boxer.list.clear();
+          } catch (err) {
+            // Silently fail - use default camera position
+          }
 
           worldRef.current = world;
           modelRef.current = model;
           setIsLoading(false);
           setModelLoadedId(fileId);
-        });
-
-        fragments.core.models.materials.list.onItemSet.add(({ value: material }) => {
-          if (!("isLodMaterial" in material && (material as any).isLodMaterial)) {
-            material.polygonOffset = true;
-            material.polygonOffsetUnits = 1;
-            material.polygonOffsetFactor = Math.random();
-          }
         });
 
         const highlighter = components.get(OBCF.Highlighter);
@@ -139,7 +156,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         });
         highlighterRef.current = highlighter;
 
-        highlighter.styles.set('xray', {
+        (highlighter as any).styles.set('xray', {
           color: new THREE.Color("#b5decc"),
           opacity: 0.2,
           transparent: true,
@@ -212,9 +229,9 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         const buffer = new Uint8Array(data);
 
         const ifcLoader = componentsRef.current!.get(OBC.IfcLoader);
-        await ifcLoader.load(buffer, false, fileId, {
+        await (ifcLoader as any).load(buffer, false, fileId, {
           processData: {
-            progressCallback: (progress) => {
+            progressCallback: (progress: number) => {
               setConversionProgress(Math.round(progress * 100));
             },
           },
@@ -237,17 +254,17 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
     if (!fragmentsRef.current) return;
     if (materialGroups.length === 0) return;
 
-    const handleElementClick = async (modelIdMap: OBC.ModelIdMap) => {
+    const handleElementClick = async (modelIdMap: any) => {
       try {
         // Extract the first clicked element
         for (const [modelId, localIds] of Object.entries(modelIdMap)) {
-          if (localIds.size === 0) continue;
+          if ((localIds as Set<number>).size === 0) continue;
 
           const model = fragmentsRef.current?.list.get(modelId);
           if (!model) continue;
 
           // Get the first clicked element's data (must pass array of IDs)
-          const firstLocalId = [...localIds][0];
+          const firstLocalId = [...(localIds as Set<number>)][0];
           const itemsData = await model.getItemsData([firstLocalId]);
           if (!itemsData || itemsData.length === 0) continue;
 
@@ -257,13 +274,11 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           const clickedGuid = itemData._guid?.value || itemData.GlobalId || itemData.globalId || itemData.Guid;
           if (!clickedGuid) continue;
 
-          // Find material group containing this GUID (CURRENT, not stale!)
-          const materialGroup = materialGroups.find(group =>
-            group.elementIds.includes(clickedGuid)
-          );
+          // O(1) lookup using pre-built map
+          const materialGroup = guidToMaterialMap.get(clickedGuid);
 
           if (materialGroup && onElementClicked) {
-            onElementClicked(materialGroup.materialGroup);
+            onElementClicked(materialGroup);
           }
           break;
         }
@@ -285,7 +300,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
         // Silently fail - may already be removed
       }
     };
-  }, [materialGroups, onElementClicked, fragmentsRef]);
+  }, [guidToMaterialMap, onElementClicked, fragmentsRef]);
 
   useEffect(() => {
     const highlightMaterial = async () => {
@@ -308,7 +323,7 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
             return;
           }
           
-          const allIdMap: OBC.ModelIdMap = {};
+          const allIdMap: any = {};
           allIdMap[modelId] = new Set(allIds);
           await highlighter.highlightByID('xray', allIdMap, true);
         } catch (err) {
@@ -344,10 +359,10 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
           return;
         }
 
-        const selectedIdMap: OBC.ModelIdMap = {};
+        const selectedIdMap: any = {};
         selectedIdMap[modelId] = new Set(selectedIds);
 
-        const allIdMap: OBC.ModelIdMap = {};
+        const allIdMap: any = {};
         allIdMap[modelId] = new Set(allIds);
 
         if (highlightMode === 'xray') {
@@ -405,19 +420,19 @@ export function Viewer({ fileId, selectedMaterial, materialGroups, highlightMode
       if (!response.ok) {
         throw new Error('Failed to fetch IFC file');
       }
-      
+
       const data = await response.arrayBuffer();
       const buffer = new Uint8Array(data);
 
       const ifcLoader = componentsRef.current.get(OBC.IfcLoader);
-      await ifcLoader.load(buffer, false, fileId, {
+      await (ifcLoader as any).load(buffer, false, fileId, {
         processData: {
-          progressCallback: (progress) => {
+          progressCallback: (progress: number) => {
             setConversionProgress(Math.round(progress * 100));
           },
         },
       });
-      // Note: isLoading will be set to false by onItemSet handler
+      // Note: Camera will be framed to fit model in onItemSet handler
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reload model');
       setIsLoading(false);
